@@ -10,14 +10,15 @@ import * as XLSX from 'xlsx';
 interface ImportExportButtonsProps {
   projectId: string;
   suiteId: string;
-  testCases: any[]; // Data to export
+  testCases: any[];
+  canEdit: boolean; // New prop for permission check
 }
 
-export function ImportExportButtons({ projectId, suiteId, testCases }: ImportExportButtonsProps) {
+export function ImportExportButtons({ projectId, suiteId, testCases, canEdit }: ImportExportButtonsProps) {
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Export Logic
+  // Export Logic (Anyone can export/view)
   const handleExport = () => {
     if (testCases.length === 0) {
       toast.error("No test cases to export");
@@ -25,19 +26,17 @@ export function ImportExportButtons({ projectId, suiteId, testCases }: ImportExp
     }
 
     try {
-      // Format data for Excel
       const data = testCases.map(tc => ({
         Title: tc.title,
         Priority: tc.priority,
         Description: tc.description,
-        Steps: tc.steps // Raw JSON string
+        Steps: tc.steps
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(data);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Test Cases");
       
-      // Generate file
       XLSX.writeFile(workbook, `test-cases-${new Date().toISOString().slice(0, 10)}.xlsx`);
       toast.success("Exported successfully!");
     } catch (error) {
@@ -46,7 +45,7 @@ export function ImportExportButtons({ projectId, suiteId, testCases }: ImportExp
     }
   };
 
-  // Import Logic
+  // Import Logic (Restricted)
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -67,7 +66,6 @@ export function ImportExportButtons({ projectId, suiteId, testCases }: ImportExp
           return;
         }
 
-        // Map Excel columns to DB fields
         const mappedCases = data.map(row => ({
           title: row.Title || row.title || "Untitled",
           description: row.Description || row.description || "",
@@ -78,11 +76,10 @@ export function ImportExportButtons({ projectId, suiteId, testCases }: ImportExp
         await importTestCases(projectId, suiteId, mappedCases);
         toast.success(`Imported ${mappedCases.length} cases!`);
         
-        // Reset input
         if (fileInputRef.current) fileInputRef.current.value = '';
-      } catch (error) {
+      } catch (error: any) {
         console.error(error);
-        toast.error("Failed to import. Check file format.");
+        toast.error(error.message || "Failed to import. Check file format.");
       } finally {
         setLoading(false);
       }
@@ -97,18 +94,21 @@ export function ImportExportButtons({ projectId, suiteId, testCases }: ImportExp
         <Download className="h-4 w-4 mr-2" /> Export
       </Button>
       
-      <input 
-        type="file" 
-        ref={fileInputRef}
-        onChange={handleFileChange}
-        accept=".xlsx,.csv" 
-        className="hidden"
-      />
-      <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={loading}>
-        {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
-        Import
-      </Button>
+      {canEdit && (
+        <>
+          <input 
+            type="file" 
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".xlsx,.csv" 
+            className="hidden"
+          />
+          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={loading}>
+            {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+            Import
+          </Button>
+        </>
+      )}
     </div>
   );
 }
-

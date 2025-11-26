@@ -1,4 +1,5 @@
-import { getProjects, createProject } from "./actions";
+import { getProjects, createProject, logoutAction } from "./actions";
+import { getSession } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,10 +15,22 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, Settings, LogOut, Shield } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 export default async function Home() {
   const projects = await getProjects();
+  const session = await getSession();
+  const user = session?.user;
+  const canEdit = user?.role === 'ADMIN' || user?.role === 'QA';
 
   return (
     <div className="container mx-auto py-10">
@@ -27,36 +40,80 @@ export default async function Home() {
           <p className="text-muted-foreground">Manage your test projects and suites.</p>
         </div>
         
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" /> New Project
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <form action={createProject}>
-              <DialogHeader>
-                <DialogTitle>Create Project</DialogTitle>
-                <DialogDescription>
-                  Add a new project to start managing test cases.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Name</Label>
-                  <Input id="name" name="name" placeholder="e.g. Mobile App v2.0" required />
+        <div className="flex items-center gap-4">
+          {canEdit && (
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" /> New Project
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <form action={createProject}>
+                  <DialogHeader>
+                    <DialogTitle>Create Project</DialogTitle>
+                    <DialogDescription>
+                      Add a new project to start managing test cases.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="name">Name</Label>
+                      <Input id="name" name="name" placeholder="e.g. Mobile App v2.0" required />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="description">Description</Label>
+                      <Textarea id="description" name="description" placeholder="Project details..." />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button type="submit">Create Project</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback>{user?.name?.[0] || "U"}</AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" align="end" forceMount>
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">{user?.name}</p>
+                  <p className="text-xs leading-none text-muted-foreground">
+                    {user?.email}
+                  </p>
+                  <p className="text-xs font-bold text-primary mt-1">
+                    Role: {user?.role}
+                  </p>
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea id="description" name="description" placeholder="Project details..." />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="submit">Create Project</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {user?.role === 'ADMIN' && (
+                <DropdownMenuItem asChild>
+                  <Link href="/admin/users">
+                    <Shield className="mr-2 h-4 w-4" />
+                    User Management
+                  </Link>
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem asChild>
+                <form action={logoutAction} className="w-full">
+                  <button type="submit" className="flex w-full items-center">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Log out
+                  </button>
+                </form>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

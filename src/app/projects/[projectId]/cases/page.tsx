@@ -1,4 +1,5 @@
 import { getSuites, createSuite, createTestCase } from "@/app/actions";
+import { getSession } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,10 @@ export default async function CasesPage({
   const { suiteId } = await searchParams;
   const suites = await getSuites(projectId);
   
+  const session = await getSession();
+  const user = session?.user;
+  const canEdit = user?.role === 'ADMIN' || user?.role === 'QA';
+  
   const activeSuite = suites.find(s => s.id === suiteId) || suites[0];
 
   return (
@@ -36,34 +41,36 @@ export default async function CasesPage({
       <div className="w-1/3 min-w-[250px] flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">Suites</h2>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button size="sm" variant="outline">
-                <Plus className="h-4 w-4 mr-1" /> New
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <form action={createSuite}>
-                <input type="hidden" name="projectId" value={projectId} />
-                <DialogHeader>
-                  <DialogTitle>Create Test Suite</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="title">Title</Label>
-                    <Input id="title" name="title" required />
+          {canEdit && (
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline">
+                  <Plus className="h-4 w-4 mr-1" /> New
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <form action={createSuite}>
+                  <input type="hidden" name="projectId" value={projectId} />
+                  <DialogHeader>
+                    <DialogTitle>Create Test Suite</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="title">Title</Label>
+                      <Input id="title" name="title" required />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="description">Description</Label>
+                      <Textarea id="description" name="description" />
+                    </div>
                   </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea id="description" name="description" />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="submit">Create</Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+                  <DialogFooter>
+                    <Button type="submit">Create</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
 
         <Card className="flex-1 overflow-hidden">
@@ -110,66 +117,70 @@ export default async function CasesPage({
                 projectId={projectId} 
                 suiteId={activeSuite.id} 
                 testCases={activeSuite.testCases} 
+                canEdit={canEdit}
               />
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-1" /> New Case
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl">
-                  <form action={createTestCase}>
-                    <input type="hidden" name="projectId" value={projectId} />
-                    <input type="hidden" name="suiteId" value={activeSuite.id} />
-                    <DialogHeader>
-                      <DialogTitle>Create Test Case</DialogTitle>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="title">Title</Label>
-                          <Input id="title" name="title" required />
+              
+              {canEdit && (
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button size="sm">
+                      <Plus className="h-4 w-4 mr-1" /> New Case
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl">
+                    <form action={createTestCase}>
+                      <input type="hidden" name="projectId" value={projectId} />
+                      <input type="hidden" name="suiteId" value={activeSuite.id} />
+                      <DialogHeader>
+                        <DialogTitle>Create Test Case</DialogTitle>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="title">Title</Label>
+                            <Input id="title" name="title" required />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="priority">Priority</Label>
+                            <Select name="priority" defaultValue="Medium">
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select priority" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="High">High</SelectItem>
+                                <SelectItem value="Medium">Medium</SelectItem>
+                                <SelectItem value="Low">Low</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
+                        
                         <div className="grid gap-2">
-                          <Label htmlFor="priority">Priority</Label>
-                          <Select name="priority" defaultValue="Medium">
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select priority" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="High">High</SelectItem>
-                              <SelectItem value="Medium">Medium</SelectItem>
-                              <SelectItem value="Low">Low</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <Label htmlFor="description">Pre-conditions / Description</Label>
+                          <Textarea id="description" name="description" />
                         </div>
-                      </div>
-                      
-                      <div className="grid gap-2">
-                        <Label htmlFor="description">Pre-conditions / Description</Label>
-                        <Textarea id="description" name="description" />
-                      </div>
 
-                      <div className="grid gap-2">
-                        <Label htmlFor="steps">Steps & Expected Results (JSON for now)</Label>
-                        <Textarea 
-                          id="steps" 
-                          name="steps" 
-                          className="font-mono text-xs"
-                          rows={5}
-                          defaultValue={'[\n  {\n    "step": "Step 1",\n    "expected": "Result 1"\n  }\n]'} 
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          * Will be replaced with a rich editor later.
-                        </p>
+                        <div className="grid gap-2">
+                          <Label htmlFor="steps">Steps & Expected Results (JSON for now)</Label>
+                          <Textarea 
+                            id="steps" 
+                            name="steps" 
+                            className="font-mono text-xs"
+                            rows={5}
+                            defaultValue={'[\n  {\n    "step": "Step 1",\n    "expected": "Result 1"\n  }\n]'} 
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            * Will be replaced with a rich editor later.
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <DialogFooter>
-                      <Button type="submit">Create Case</Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
+                      <DialogFooter>
+                        <Button type="submit">Create Case</Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
           )}
         </div>
@@ -192,14 +203,16 @@ export default async function CasesPage({
                         {testCase.description}
                       </p>
                     </div>
-                    <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
+                    {canEdit && (
+                      <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 ))}
                 {activeSuite.testCases.length === 0 && (
                   <div className="text-center py-20 text-muted-foreground">
-                    No test cases in this suite. Import or create new ones to get started.
+                    No test cases in this suite.
                   </div>
                 )}
               </div>
